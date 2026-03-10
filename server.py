@@ -20,8 +20,8 @@ from segment import get_default_device, load_segmentation_models, segment_single
 
 CHECKPOINT_ENV = "SHAS_CHECKPOINT"
 BEARER_TOKEN_ENV = "SHAS_BEARER_TOKEN"
-HOST_ENV = "SHAS_HOST"
-PORT_ENV = "SHAS_PORT"
+HOST_ENV = "UVICORN_HOST"
+PORT_ENV = "UVICORN_PORT"
 RELOAD_ENV = "SHAS_RELOAD"
 
 load_dotenv(ROOT / ".env")

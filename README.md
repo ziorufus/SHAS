@@ -27,8 +27,8 @@ Example `.env` values:
 ```env
 SHAS_CHECKPOINT=/absolute/path/to/model.pt
 SHAS_BEARER_TOKEN=replace-with-a-long-random-token
-SHAS_HOST=127.0.0.1
-SHAS_PORT=8000
+UVICORN_HOST=127.0.0.1
+UVICORN_PORT=8000
 SHAS_RELOAD=false
 ```
 
@@ -37,6 +37,8 @@ Start the API server:
 ```bash
 python server.py
 ```
+
+Note: when you start the service with `python server.py`, the `.env` file is loaded by the application and `UVICORN_HOST` / `UVICORN_PORT` are used automatically. If you start it with `uvicorn server:app`, host and port are handled by Uvicorn itself before the app is imported, so you should pass `--host` / `--port` explicitly or export them in the shell environment beforehand.
 
 Equivalent explicit CLI options:
 
