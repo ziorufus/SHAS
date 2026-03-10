@@ -7,8 +7,9 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 
 import uvicorn
-from fastapi import Depends, FastAPI, File, Form, Header, HTTPException, UploadFile
+from fastapi import Depends, FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.responses import Response
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from dotenv import load_dotenv
 
 ROOT = Path(__file__).resolve().parent
@@ -55,18 +56,20 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="SHAS Segmentation API", lifespan=lifespan)
+bearer_scheme = HTTPBearer(auto_error=False)
 
 
-def require_bearer_token(authorization: str | None = Header(default=None)):
-    if not authorization:
+def require_bearer_token(
+    credentials: HTTPAuthorizationCredentials | None = Depends(bearer_scheme),
+):
+    if credentials is None:
         raise HTTPException(
             status_code=401,
             detail="Missing Authorization header",
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    scheme, _, token = authorization.partition(" ")
-    if scheme.lower() != "bearer" or not token:
+    if credentials.scheme.lower() != "bearer" or not credentials.credentials:
         raise HTTPException(
             status_code=401,
             detail="Invalid Authorization header",
@@ -74,7 +77,7 @@ def require_bearer_token(authorization: str | None = Header(default=None)):
         )
 
     expected_token = app.state.bearer_token
-    if not hmac.compare_digest(token, expected_token):
+    if not hmac.compare_digest(credentials.credentials, expected_token):
         raise HTTPException(
             status_code=401,
             detail="Invalid bearer token",
