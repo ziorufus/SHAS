@@ -11,6 +11,23 @@ from torch.utils.data import DataLoader, Dataset
 from tqdm import tqdm
 
 
+def load_audio(path, frame_offset=0, num_frames=-1):
+    """Load audio without depending on torchaudio's optional sox extension."""
+    try:
+        return torchaudio.load(
+            path,
+            frame_offset=frame_offset,
+            num_frames=num_frames,
+            backend="soundfile",
+        )
+    except TypeError:
+        return torchaudio.load(
+            path,
+            frame_offset=frame_offset,
+            num_frames=num_frames,
+        )
+
+
 class SegmentationDataset(Dataset):
     """Base class for FixedSegmentationDataset and RandomSegmentationDataset"""
 
@@ -249,7 +266,7 @@ class FixedSegmentationDataset(SegmentationDataset):
 
         segment = self.fixed_segments_df.iloc[index]
 
-        waveform, _ = torchaudio.backend.sox_io_backend.load(
+        waveform, _ = load_audio(
             self.talk_path, frame_offset=segment.start, num_frames=segment.duration
         )
 
@@ -374,7 +391,7 @@ class RandomSegmentationDataset(SegmentationDataset):
         ].values[0]
 
         # get input
-        wavefrom, _ = torchaudio.backend.sox_io_backend.load(
+        wavefrom, _ = load_audio(
             talk_path, frame_offset=segment.start, num_frames=segment.duration
         )
 
@@ -531,7 +548,7 @@ class FixedSegmentationDatasetNoTarget(Dataset):
                 2: ending frame of the segment (output space)
         """
 
-        waveform, _ = torchaudio.backend.sox_io_backend.load(
+        waveform, _ = load_audio(
             self.path_to_wav,
             frame_offset=self.starts[index],
             num_frames=self.ends[index] - self.starts[index],

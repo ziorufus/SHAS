@@ -174,23 +174,29 @@ def update_yaml_content(
     return yaml_content
 
 
-def segment(args):
+def get_default_device() -> torch.device:
+    if torch.backends.mps.is_available():
+        return torch.device("mps")
+    if torch.cuda.device_count() > 0:
+        return torch.device("cuda:0")
+    return torch.device("cpu")
 
-    device = (
-        torch.device(f"cuda:0")
-        if torch.cuda.device_count() > 0
-        else torch.device("cpu")
+
+def load_segmentation_models(
+    path_to_checkpoint: str, device: torch.device | None = None
+):
+    if device is None:
+        device = get_default_device()
+
+    checkpoint = torch.load(
+        path_to_checkpoint, map_location=device, weights_only=False
     )
 
-    checkpoint = torch.load(args.path_to_checkpoint, map_location=device)
-
-    # init wav2vec 2.0
     wav2vec_model = prepare_wav2vec(
         checkpoint["args"].model_name,
         checkpoint["args"].wav2vec_keep_layers,
         device,
     )
-    # init segmentation frame classifier
     sfc_model = SegmentationFrameClassifer(
         d_model=HIDDEN_SIZE,
         n_transformer_layers=checkpoint["args"].classifier_n_transformer_layers,
@@ -198,56 +204,99 @@ def segment(args):
     sfc_model.load_state_dict(checkpoint["state_dict"])
     sfc_model.eval()
 
+    return wav2vec_model, sfc_model, checkpoint, device
+
+
+def segment_single_wav(
+    path_to_wav: str | Path,
+    wav2vec_model,
+    sfc_model,
+    device: torch.device,
+    inference_batch_size: int = 12,
+    inference_segment_length: int = 20,
+    inference_times: int = 1,
+    dac_max_segment_length: float = 18,
+    dac_min_segment_length: float = 0.2,
+    dac_threshold: float = 0.5,
+    not_strict: bool = False,
+    dataloader_num_workers: int | None = None,
+) -> list[dict]:
+    wav_path = Path(path_to_wav)
+    if dataloader_num_workers is None:
+        dataloader_num_workers = min(cpu_count() // 2, 4)
+
+    dataset = FixedSegmentationDatasetNoTarget(
+        wav_path, inference_segment_length, inference_times
+    )
+    sgm_frame_probs = None
+
+    for inference_iteration in range(inference_times):
+        dataset.fixed_length_segmentation(inference_iteration)
+        dataloader = DataLoader(
+            dataset,
+            batch_size=inference_batch_size,
+            num_workers=dataloader_num_workers,
+            shuffle=False,
+            drop_last=False,
+            collate_fn=segm_collate_fn,
+        )
+
+        probs, _ = infer(
+            wav2vec_model,
+            sfc_model,
+            dataloader,
+            device,
+        )
+        if sgm_frame_probs is None:
+            sgm_frame_probs = probs.copy()
+        else:
+            sgm_frame_probs += probs
+
+    sgm_frame_probs /= inference_times
+
+    segments = pdac(
+        sgm_frame_probs,
+        dac_max_segment_length,
+        dac_min_segment_length,
+        dac_threshold,
+        not_strict,
+    )
+
+    return update_yaml_content([], segments, wav_path.name)
+
+
+def yaml_dump(content: list[dict]) -> str:
+    return yaml.dump(content, default_flow_style=True)
+
+
+def segment(args):
+    device = get_default_device()
+    wav2vec_model, sfc_model, _checkpoint, device = load_segmentation_models(
+        args.path_to_checkpoint, device
+    )
+
     yaml_content = []
     for wav_path in tqdm(sorted(list(Path(args.path_to_wavs).glob("*.wav")))):
-
-        # initialize a dataset for the fixed segmentation
-        dataset = FixedSegmentationDatasetNoTarget(
-            wav_path, args.inference_segment_length, args.inference_times
-        )
-        sgm_frame_probs = None
-
-        for inference_iteration in range(args.inference_times):
-
-            # create a dataloader for this fixed-length segmentation of the wav file
-            dataset.fixed_length_segmentation(inference_iteration)
-            dataloader = DataLoader(
-                dataset,
-                batch_size=args.inference_batch_size,
-                num_workers=min(cpu_count() // 2, 4),
-                shuffle=False,
-                drop_last=False,
-                collate_fn=segm_collate_fn,
-            )
-
-            # get frame segmentation frame probabilities in the output space
-            probs, _ = infer(
+        yaml_content.extend(
+            segment_single_wav(
+                wav_path,
                 wav2vec_model,
                 sfc_model,
-                dataloader,
                 device,
+                inference_batch_size=args.inference_batch_size,
+                inference_segment_length=args.inference_segment_length,
+                inference_times=args.inference_times,
+                dac_max_segment_length=args.dac_max_segment_length,
+                dac_min_segment_length=args.dac_min_segment_length,
+                dac_threshold=args.dac_threshold,
+                not_strict=args.not_strict,
             )
-            if sgm_frame_probs is None:
-                sgm_frame_probs = probs.copy()
-            else:
-                sgm_frame_probs += probs
-
-        sgm_frame_probs /= args.inference_times
-
-        segments = pdac(
-            sgm_frame_probs,
-            args.dac_max_segment_length,
-            args.dac_min_segment_length,
-            args.dac_threshold,
-            args.not_strict
         )
-
-        yaml_content = update_yaml_content(yaml_content, segments, wav_path.name)
 
     path_to_segmentation_yaml = Path(args.path_to_segmentation_yaml)
     path_to_segmentation_yaml.parent.mkdir(parents=True, exist_ok=True)
     with open(path_to_segmentation_yaml, "w") as f:
-        yaml.dump(yaml_content, f, default_flow_style=True)
+        f.write(yaml_dump(yaml_content))
 
     print(
         f"Saved SHAS segmentation with max={args.dac_max_segment_length} & "

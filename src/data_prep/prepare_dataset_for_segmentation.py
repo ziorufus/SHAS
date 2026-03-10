@@ -7,8 +7,6 @@ import yaml
 
 SR = 16_000
 
-torchaudio.set_audio_backend("sox_io")
-
 
 def create_talks_df(path_to_wavs: Path, segments_df: pd.DataFrame) -> pd.DataFrame:
     """

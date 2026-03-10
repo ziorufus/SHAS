@@ -5,7 +5,9 @@ import torch
 
 def fix_joint_s2t_cfg(path_to_ckpt):
 
-    ckpt = torch.load(path_to_ckpt, map_location=torch.device("cpu"))
+    ckpt = torch.load(
+        path_to_ckpt, map_location=torch.device("cpu"), weights_only=False
+    )
 
     if "mustc" in path_to_ckpt:
         ckpt["cfg"]["model"].load_pretrain_speech_encoder = ""

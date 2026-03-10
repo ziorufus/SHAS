@@ -1,0 +1,36 @@
+# SHAS dependency set for modern venv-based setups on Python 3.12.
+#
+# Scope:
+# - Supported here: the core segmentation / supervised_hybrid code paths.
+# - Not covered here: the legacy fairseq fork and the old mwerSegmenter Python 2
+#   workflow mentioned in the README. Those parts need separate modernization.
+#
+# Recommended setup:
+#   python3.12 -m venv venv
+#   . venv/bin/activate
+#   python -m pip install --upgrade pip setuptools wheel
+#   python -m pip install -r requirements.txt
+#
+# fairseq is intentionally not included because the repository expects a custom
+# fork installed separately, and that integration should be upgraded on its own.
+
+numpy>=1.26,<3
+pandas>=2.1,<2.3
+PyYAML>=6,<7
+sacrebleu>=2.4,<3
+sacremoses>=0.1,<0.2
+scikit-learn>=1.4,<1.7
+sentencepiece>=0.2,<0.3
+soundfile>=0.12,<0.14
+torch>=2.4,<2.7
+torchaudio>=2.4,<2.7
+tqdm>=4.66,<5
+transformers>=4.45,<5
+tweepy>=4.14,<5
+wandb>=0.18,<0.20
+webrtcvad==2.0.10
+pydub>=0.25,<0.26
+fastapi>=0.115,<1
+uvicorn>=0.30,<1
+python-multipart>=0.0.9,<0.1
+python-dotenv>=1.0,<2

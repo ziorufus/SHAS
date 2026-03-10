@@ -14,6 +14,23 @@ from pydub import AudioSegment
 from torch.utils.data import DataLoader, Dataset
 
 
+def load_audio(path, frame_offset=0, num_frames=-1):
+    """Load audio without depending on torchaudio's optional sox extension."""
+    try:
+        return torchaudio.load(
+            path,
+            frame_offset=frame_offset,
+            num_frames=num_frames,
+            backend="soundfile",
+        )
+    except TypeError:
+        return torchaudio.load(
+            path,
+            frame_offset=frame_offset,
+            num_frames=num_frames,
+        )
+
+
 def flatten(x: Union[list, str]) -> list[str]:
     if isinstance(x, list):
         return [a for i in x for a in flatten(i)]
@@ -211,7 +228,7 @@ class TokenPredDataset(Dataset):
         self.wav2vec_frame_length = WAV2VEC_FRAME_LEN / 1000
 
         # load the whole wav file
-        self.wav_array, self.sr = torchaudio.backend.sox_io_backend.load(path_to_wav)
+        self.wav_array, self.sr = load_audio(path_to_wav)
         self.wav_array = self.wav_array[0].numpy()
 
         self.total_duration = len(self.wav_array) // self.sr

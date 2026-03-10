@@ -5,6 +5,66 @@ In this repo you can find the code of the Supervised Hybrid Audio Segmentation (
 
 Follow the instructions [here](#usage) to segment a collection of audio files, or the instructions [here](#more-extensive-usage) to replicate the results of the paper.
 
+## Project update
+
+This repository has been updated to run the core segmentation workflow with Python 3.12. The migration has been verified for the segmentation-related code paths, including `src/supervised_hybrid/segment.py` and the new API server. The `fairseq`-based speech translation part of the original pipeline has not been fully re-verified in this updated setup and should still be considered legacy.
+
+For that reason, a `requirements.txt` file has been added for modern `venv`-based environments. The original `environment.yml` is kept for reference, but it may now be obsolete or no longer fully reproducible on current systems, especially outside the original conda-based environment used by the paper.
+
+A FastAPI server has also been added in [server.py](/Users/alessio/SHAS/server.py). It loads the segmentation checkpoint once at startup and exposes a single authenticated endpoint, `POST /segment`, which accepts an uploaded WAV file and returns the generated YAML segmentation. The server supports both CLI flags and `.env` configuration.
+
+Example setup:
+
+```bash
+python3.12 -m venv venv
+. venv/bin/activate
+python -m pip install -r requirements.txt
+cp .env.example .env
+```
+
+Example `.env` values:
+
+```env
+SHAS_CHECKPOINT=/absolute/path/to/model.pt
+SHAS_BEARER_TOKEN=replace-with-a-long-random-token
+SHAS_HOST=127.0.0.1
+SHAS_PORT=8000
+SHAS_RELOAD=false
+```
+
+Start the API server:
+
+```bash
+python server.py
+```
+
+Equivalent explicit CLI options:
+
+```bash
+python server.py \
+  --checkpoint /absolute/path/to/model.pt \
+  --bearer-token "replace-with-a-long-random-token" \
+  --host 127.0.0.1 \
+  --port 8000 \
+  --reload
+```
+
+Call the API:
+
+```bash
+curl -X POST "http://127.0.0.1:8000/segment" \
+  -H "Authorization: Bearer replace-with-a-long-random-token" \
+  -F "wav_file=@jobs/test.wav" \
+  -F "inference_batch_size=12" \
+  -F "inference_segment_length=20" \
+  -F "inference_times=1" \
+  -F "dac_max_segment_length=18" \
+  -F "dac_min_segment_length=0.2" \
+  -F "dac_threshold=0.5" \
+  -F "not_strict=false" \
+  -o test.yaml
+```
+
 ## Abstract
 
 <em>
