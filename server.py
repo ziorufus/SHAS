@@ -206,7 +206,7 @@ async def segment_start(
     dac_threshold: float = Form(0.5),
     not_strict: bool = Form(False),
 ):
-    job_id = uuid4().hex
+    job_id = str(uuid4())
     job_dir = get_job_dir(job_id)
     job_dir.mkdir(parents=True, exist_ok=False)
 
