@@ -11,7 +11,7 @@ This repository has been updated to run the core segmentation workflow with Pyth
 
 For that reason, a `requirements.txt` file has been added for modern `venv`-based environments. The original `environment.yml` is kept for reference, but it may now be obsolete or no longer fully reproducible on current systems, especially outside the original conda-based environment used by the paper.
 
-A FastAPI server has also been added in [server.py](/Users/alessio/SHAS/server.py). It loads the segmentation checkpoint once at startup and exposes a single authenticated endpoint, `POST /segment`, which accepts an uploaded WAV file and returns the generated YAML segmentation. The server supports both CLI flags and `.env` configuration.
+A FastAPI server has also been added in [server.py](/Users/alessio/SHAS/server.py). It loads the segmentation checkpoint once at startup and exposes an authenticated job-based API. `POST /segment-start` uploads a WAV file and starts a segmentation job, `GET /segment-status` reports whether the job is `running`, `completed`, or `error` and includes a `progress` percentage, and `GET /segment-out` returns the final YAML output for a completed job. For each request, the server creates a subdirectory inside `JOBS_DIR` named after the job ID and stores input, status, and output files there. The server supports both CLI flags and `.env` configuration.
 
 Example setup:
 
@@ -27,6 +27,7 @@ Example `.env` values:
 ```env
 SHAS_CHECKPOINT=/absolute/path/to/model.pt
 SHAS_BEARER_TOKEN=replace-with-a-long-random-token
+JOBS_DIR=./jobs
 UVICORN_HOST=127.0.0.1
 UVICORN_PORT=8000
 UVICORN_ROOT_PATH=
@@ -47,6 +48,7 @@ Equivalent explicit CLI options:
 python server.py \
   --checkpoint /absolute/path/to/model.pt \
   --bearer-token "replace-with-a-long-random-token" \
+  --jobs-dir ./jobs \
   --host 127.0.0.1 \
   --port 8000 \
   --root-path /shas \
@@ -59,10 +61,10 @@ If the API is published under a subpath such as `https://example.com/shas`, set:
 UVICORN_ROOT_PATH=/shas
 ```
 
-Call the API:
+Start a segmentation job:
 
 ```bash
-curl -X POST "http://127.0.0.1:8000/segment" \
+curl -X POST "http://127.0.0.1:8000/segment-start" \
   -H "Authorization: Bearer replace-with-a-long-random-token" \
   -F "wav_file=@jobs/test.wav" \
   -F "inference_batch_size=12" \
@@ -71,7 +73,27 @@ curl -X POST "http://127.0.0.1:8000/segment" \
   -F "dac_max_segment_length=18" \
   -F "dac_min_segment_length=0.2" \
   -F "dac_threshold=0.5" \
-  -F "not_strict=false" \
+  -F "not_strict=false"
+```
+
+Check status:
+
+```bash
+curl "http://127.0.0.1:8000/segment-status?job_id=<JOB_ID>" \
+  -H "Authorization: Bearer replace-with-a-long-random-token"
+```
+
+Example status response:
+
+```json
+{"job_id":"<JOB_ID>","status":"running","progress":45.0}
+```
+
+Download the YAML output after completion:
+
+```bash
+curl "http://127.0.0.1:8000/segment-out?job_id=<JOB_ID>" \
+  -H "Authorization: Bearer replace-with-a-long-random-token" \
   -o test.yaml
 ```
 

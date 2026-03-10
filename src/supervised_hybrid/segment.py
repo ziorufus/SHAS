@@ -220,6 +220,7 @@ def segment_single_wav(
     dac_threshold: float = 0.5,
     not_strict: bool = False,
     dataloader_num_workers: int | None = None,
+    progress_callback=None,
 ) -> list[dict]:
     wav_path = Path(path_to_wav)
     if dataloader_num_workers is None:
@@ -229,6 +230,8 @@ def segment_single_wav(
         wav_path, inference_segment_length, inference_times
     )
     sgm_frame_probs = None
+    if progress_callback is not None:
+        progress_callback(0.0)
 
     for inference_iteration in range(inference_times):
         dataset.fixed_length_segmentation(inference_iteration)
@@ -251,6 +254,8 @@ def segment_single_wav(
             sgm_frame_probs = probs.copy()
         else:
             sgm_frame_probs += probs
+        if progress_callback is not None:
+            progress_callback((inference_iteration + 1) / inference_times * 90.0)
 
     sgm_frame_probs /= inference_times
 
@@ -261,6 +266,8 @@ def segment_single_wav(
         dac_threshold,
         not_strict,
     )
+    if progress_callback is not None:
+        progress_callback(100.0)
 
     return update_yaml_content([], segments, wav_path.name)
 
