@@ -9,7 +9,7 @@ __pycache__/
 *.so
 
 figures/
-jobs/
+jobs
 notebooks/
 *.out
 
