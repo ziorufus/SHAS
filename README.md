@@ -29,6 +29,7 @@ SHAS_CHECKPOINT=/absolute/path/to/model.pt
 SHAS_BEARER_TOKEN=replace-with-a-long-random-token
 UVICORN_HOST=127.0.0.1
 UVICORN_PORT=8000
+UVICORN_ROOT_PATH=
 SHAS_RELOAD=false
 ```
 
@@ -38,7 +39,7 @@ Start the API server:
 python server.py
 ```
 
-Note: when you start the service with `python server.py`, the `.env` file is loaded by the application and `UVICORN_HOST` / `UVICORN_PORT` are used automatically. If you start it with `uvicorn server:app`, host and port are handled by Uvicorn itself before the app is imported, so you should pass `--host` / `--port` explicitly or export them in the shell environment beforehand.
+Note: when you start the service with `python server.py`, the `.env` file is loaded by the application and `UVICORN_HOST` / `UVICORN_PORT` / `UVICORN_ROOT_PATH` are used automatically. If you start it with `uvicorn server:app`, host, port, and root path are handled by Uvicorn itself before the app is imported, so you should pass `--host` / `--port` / `--root-path` explicitly or export them in the shell environment beforehand.
 
 Equivalent explicit CLI options:
 
@@ -48,7 +49,14 @@ python server.py \
   --bearer-token "replace-with-a-long-random-token" \
   --host 127.0.0.1 \
   --port 8000 \
+  --root-path /shas \
   --reload
+```
+
+If the API is published under a subpath such as `https://example.com/shas`, set:
+
+```env
+UVICORN_ROOT_PATH=/shas
 ```
 
 Call the API:

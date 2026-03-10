@@ -23,6 +23,7 @@ CHECKPOINT_ENV = "SHAS_CHECKPOINT"
 BEARER_TOKEN_ENV = "SHAS_BEARER_TOKEN"
 HOST_ENV = "UVICORN_HOST"
 PORT_ENV = "UVICORN_PORT"
+ROOT_PATH_ENV = "UVICORN_ROOT_PATH"
 RELOAD_ENV = "SHAS_RELOAD"
 
 load_dotenv(ROOT / ".env")
@@ -149,6 +150,7 @@ def main():
     parser.add_argument(
         "--port", type=int, default=int(os.environ.get(PORT_ENV, "8000"))
     )
+    parser.add_argument("--root-path", default=os.environ.get(ROOT_PATH_ENV, ""))
     parser.add_argument("--reload", action="store_true")
     args = parser.parse_args()
 
@@ -166,7 +168,13 @@ def main():
 
     os.environ[CHECKPOINT_ENV] = args.checkpoint
     os.environ[BEARER_TOKEN_ENV] = args.bearer_token
-    uvicorn.run("server:app", host=args.host, port=args.port, reload=args.reload)
+    uvicorn.run(
+        "server:app",
+        host=args.host,
+        port=args.port,
+        root_path=args.root_path,
+        reload=args.reload,
+    )
 
 
 if __name__ == "__main__":
