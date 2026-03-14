@@ -69,6 +69,23 @@ def get_error_path(job_dir: Path) -> Path:
     return job_dir / "error.txt"
 
 
+def infer_job_status_payload(job_dir: Path) -> dict:
+    output_path = get_output_path(job_dir)
+    if output_path.exists():
+        return {"status": STATUS_COMPLETED, "progress": 100.0}
+
+    error_path = get_error_path(job_dir)
+    if error_path.exists():
+        error_message = error_path.read_text().strip() or "Segmentation job failed"
+        return {"status": STATUS_ERROR, "error": error_message}
+
+    request_path = job_dir / "request.json"
+    if request_path.exists():
+        return {"status": STATUS_RUNNING}
+
+    raise HTTPException(status_code=404, detail="Unknown job ID")
+
+
 def set_job_status(
     job_dir: Path,
     status: str,
@@ -86,8 +103,15 @@ def set_job_status(
 def get_job_status_payload(job_dir: Path) -> dict:
     status_path = get_status_path(job_dir)
     if not status_path.exists():
-        raise HTTPException(status_code=404, detail="Unknown job ID")
-    return read_json(status_path)
+        return infer_job_status_payload(job_dir)
+
+    payload = read_json(status_path)
+    if payload.get("status") == STATUS_COMPLETED and not get_output_path(job_dir).exists():
+        return infer_job_status_payload(job_dir)
+
+    if payload.get("status") == STATUS_ERROR and not get_error_path(job_dir).exists():
+        return infer_job_status_payload(job_dir)
+    return payload
 
 
 def require_bearer_token(
